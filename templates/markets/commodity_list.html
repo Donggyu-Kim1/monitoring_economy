@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+
+{% block title %}Commodities{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- 차트 섹션 -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold mb-4">금/원유 추이</h2>
+            <div class="h-80">
+                <canvas id="commodityChart"></canvas>
+            </div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold mb-4">비트코인 추이</h2>
+            <div class="h-80">
+                <canvas id="bitcoinChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 데이터 테이블 -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="min-w-full">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">시간</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gold</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">WTI</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bitcoin</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">일간 변화율</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for item in commodities %}
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ item.timestamp|date:"Y-m-d H:i" }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm {% if item.gold_change > 0 %}text-green-600{% elif item.gold_change < 0 %}text-red-600{% endif %}">
+                            {{ item.gold|floatformat:2 }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm {% if item.wti_change > 0 %}text-green-600{% elif item.wti_change < 0 %}text-red-600{% endif %}">
+                            {{ item.wti|floatformat:2 }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm {% if item.bitcoin_change > 0 %}text-green-600{% elif item.bitcoin_change < 0 %}text-red-600{% endif %}">
+                            {{ item.bitcoin|floatformat:2 }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm font-medium {% if item.daily_change > 0 %}text-green-600{% elif item.daily_change < 0 %}text-red-600{% endif %}">
+                            {{ item.daily_change|floatformat:2 }}%
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include 'markets/includes/pagination.html' %}
+</div>
+
+{% block extra_scripts %}
+<script>
+// 원자재 차트 초기화
+const commodityCtx = document.getElementById('commodityChart').getContext('2d');
+const bitcoinCtx = document.getElementById('bitcoinChart').getContext('2d');
+
+const commodityChart = new Chart(commodityCtx, {
+    type: 'line',
+    data: {
+        labels: {{ timestamps|safe }},
+        datasets: [
+            {
+                label: 'Gold',
+                data: {{ gold_data|safe }},
+                borderColor: 'rgb(255, 215, 0)',
+                tension: 0.1
+            },
+            {
+                label: 'WTI',
+                data: {{ wti_data|safe }},
+                borderColor: 'rgb(139, 69, 19)',
+                tension: 0.1
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: false
+            }
+        }
+    }
+});
+
+const bitcoinChart = new Chart(bitcoinCtx, {
+    type: 'line',
+    data: {
+        labels: {{ timestamps|safe }},
+        datasets: [{
+            label: 'Bitcoin',
+            data: {{ bitcoin_data|safe }},
+            borderColor: 'rgb(247, 147, 26)',
+            tension: 0.1
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: false
+            }
+        }
+    }
+});
+</script>
+{% endblock %}
+</div>
+{% endblock %}

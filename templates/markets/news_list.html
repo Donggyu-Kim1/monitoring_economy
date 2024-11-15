@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block title %}Market News{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- 뉴스 필터 -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <form method="get" class="flex flex-wrap gap-4">
+            <div class="flex-1 min-w-[200px]">
+                <input type="text" name="search" placeholder="검색어 입력..." 
+                       class="w-full px-4 py-2 border rounded-md" 
+                       value="{{ request.GET.search }}">
+            </div>
+            <div>
+                <select name="source" class="px-4 py-2 border rounded-md">
+                    <option value="">모든 소스</option>
+                    {% for source in sources %}
+                    <option value="{{ source }}" {% if request.GET.source == source %}selected{% endif %}>
+                        {{ source }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="px-6 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">
+                검색
+            </button>
+        </form>
+    </div>
+
+    <!-- 뉴스 목록 -->
+    <div class="space-y-4">
+        {% for news in headlines %}
+        <div class="bg-white rounded-lg shadow p-6">
+            <a href="{{ news.url }}" target="_blank" class="block hover:bg-gray-50">
+                <h3 class="text-lg font-semibold text-gray-900 hover:text-blue-600">
+                    {{ news.title }}
+                </h3>
+                <div class="mt-2 text-sm text-gray-500">
+                    <span>{{ news.source }}</span>
+                    <span class="mx-2">•</span>
+                    <span>{{ news.timestamp|timesince }} ago</span>
+                </div>
+                {% if news.summary %}
+                <p class="mt-2 text-gray-600">
+                    {{ news.summary }}
+                </p>
+                {% endif %}
+            </a>
+        </div>
+        {% empty %}
+        <div class="bg-white rounded-lg shadow p-6 text-center">
+            <p class="text-gray-500">검색 결과가 없습니다.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% include 'markets/includes/pagination.html' %}
+</div>
+{% endblock %}

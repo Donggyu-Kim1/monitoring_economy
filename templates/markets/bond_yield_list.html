@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block title %}Bond Yields{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- 차트 섹션 -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold mb-4">채권 수익률 추이</h2>
+        <div class="h-96">
+            <canvas id="bondTrendChart"></canvas>
+        </div>
+    </div>
+
+    <!-- 스프레드 차트 -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold mb-4">2s10s 스프레드</h2>
+        <div class="h-64">
+            <canvas id="spreadChart"></canvas>
+        </div>
+    </div>
+
+    <!-- 데이터 테이블 -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="min-w-full">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">시간</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">US 10Y</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">US 2Y</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Spread</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for yield in yields %}
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ yield.timestamp|date:"Y-m-d H:i" }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        {{ yield.us_10y|floatformat:3 }}%
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        {{ yield.us_2y|floatformat:3 }}%
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm {% if yield.us_spread < 0 %}text-red-600{% endif %}">
+                            {{ yield.us_spread|floatformat:3 }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include 'markets/includes/pagination.html' %}
+</div>
+{% endblock %}
