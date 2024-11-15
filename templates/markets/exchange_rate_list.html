@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block title %}Exchange Rates{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- 환율 차트 -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold mb-4">환율 추이</h2>
+        <div class="h-96">
+            <canvas id="exchangeRateChart"></canvas>
+        </div>
+    </div>
+
+    <!-- 환율 테이블 -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="min-w-full">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">시간</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">USD/KRW</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">EUR/USD</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">JPY/KRW</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">변화율</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for rate in rates %}
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ rate.timestamp|date:"Y-m-d H:i" }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm {% if rate.usd_krw_change > 0 %}text-green-600{% elif rate.usd_krw_change < 0 %}text-red-600{% endif %}">
+                            {{ rate.usd_krw|floatformat:2 }}
+                            {% if rate.usd_krw_change %}
+                                ({{ rate.usd_krw_change|floatformat:2 }}%)
+                            {% endif %}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm">{{ rate.eur_usd|floatformat:4 }}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm">{{ rate.jpy_krw|floatformat:2 }}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm font-medium {% if rate.daily_change > 0 %}text-green-600{% elif rate.daily_change < 0 %}text-red-600{% endif %}">
+                            {{ rate.daily_change|floatformat:2 }}%
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include 'markets/includes/pagination.html' %}
+</div>
+
+{% block extra_scripts %}
+<script>
+// 환율 차트 초기화
+const ctx = document.getElementById('exchangeRateChart').getContext('2d');
+const exchangeRateChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: {{ timestamps|safe }},
+        datasets: [
+            {
+                label: 'USD/KRW',
+                data: {{ usd_krw_data|safe }},
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.1
+            },
+            {
+                label: 'EUR/USD',
+                data: {{ eur_usd_data|safe }},
+                borderColor: 'rgb(153, 102, 255)',
+                tension: 0.1
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: false
+            }
+        }
+    }
+});
+</script>
+{% endblock %}
+</div>
+{% endblock %}

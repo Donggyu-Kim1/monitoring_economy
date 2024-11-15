@@ -1,0 +1,260 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <!-- Market Indices -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold mb-4">주요 지수</h2>
+        <div class="space-y-4">
+            {% if market_data %}
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <p class="text-sm text-gray-500">S&P 500</p>
+                    <p class="text-lg font-semibold {% if market_data.sp500_change > 0 %}text-green-500{% elif market_data.sp500_change < 0 %}text-red-500{% endif %}">
+                        {{ market_data.sp500|floatformat:2 }}
+                    </p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">NASDAQ</p>
+                    <p class="text-lg font-semibold {% if market_data.nasdaq_change > 0 %}text-green-500{% elif market_data.nasdaq_change < 0 %}text-red-500{% endif %}">
+                        {{ market_data.nasdaq|floatformat:2 }}
+                    </p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">KOSPI</p>
+                    <p class="text-lg font-semibold {% if market_data.kospi_change > 0 %}text-green-500{% elif market_data.kospi_change < 0 %}text-red-500{% endif %}">
+                        {{ market_data.kospi|floatformat:2 }}
+                    </p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">KOSDAQ</p>
+                    <p class="text-lg font-semibold {% if market_data.kosdaq_change > 0 %}text-green-500{% elif market_data.kosdaq_change < 0 %}text-red-500{% endif %}">
+                        {{ market_data.kosdaq|floatformat:2 }}
+                    </p>
+                </div>
+            </div>
+            <div class="mt-4">
+                <canvas id="indicesChart"></canvas>
+            </div>
+            {% else %}
+            <p class="text-gray-500">데이터를 불러오는 중...</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Bond Yields -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold mb-4">채권 수익률</h2>
+        <div class="space-y-4">
+            {% if bond_data %}
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <p class="text-sm text-gray-500">US 10Y</p>
+                    <p class="text-lg font-semibold">{{ bond_data.us_10y|floatformat:2 }}%</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">US 2Y</p>
+                    <p class="text-lg font-semibold">{{ bond_data.us_2y|floatformat:2 }}%</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">2s10s Spread</p>
+                    <p class="text-lg font-semibold {% if bond_data.us_spread < 0 %}text-red-500{% endif %}">
+                        {{ bond_data.us_spread|floatformat:2 }}
+                    </p>
+                </div>
+            </div>
+            <div class="mt-4">
+                <canvas id="bondChart"></canvas>
+            </div>
+            {% else %}
+            <p class="text-gray-500">데이터를 불러오는 중...</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Exchange Rates -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold mb-4">환율</h2>
+        <div class="space-y-4">
+            {% if exchange_data %}
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <p class="text-sm text-gray-500">USD/KRW</p>
+                    <p class="text-lg font-semibold">{{ exchange_data.usd_krw|floatformat:2 }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">EUR/USD</p>
+                    <p class="text-lg font-semibold">{{ exchange_data.eur_usd|floatformat:4 }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">JPY/KRW</p>
+                    <p class="text-lg font-semibold">{{ exchange_data.jpy_krw|floatformat:2 }}</p>
+                </div>
+            </div>
+            {% else %}
+            <p class="text-gray-500">데이터를 불러오는 중...</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Commodities -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold mb-4">원자재 & 암호화폐</h2>
+        <div class="space-y-4">
+            {% if commodity_data %}
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <p class="text-sm text-gray-500">Gold</p>
+                    <p class="text-lg font-semibold">{{ commodity_data.gold|floatformat:2 }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">WTI</p>
+                    <p class="text-lg font-semibold">{{ commodity_data.wti|floatformat:2 }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Bitcoin</p>
+                    <p class="text-lg font-semibold">{{ commodity_data.bitcoin|floatformat:2 }}</p>
+                </div>
+            </div>
+            {% else %}
+            <p class="text-gray-500">데이터를 불러오는 중...</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Economic Calendar -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold mb-4">경제 지표 일정</h2>
+        <div class="space-y-2">
+            {% for event in economic_calendar %}
+            <div class="border-b pb-2">
+                <p class="text-sm">
+                    <span class="font-semibold">{{ event.get_indicator_display }}</span>
+                    <span class="text-gray-500">{{ event.release_date|date:"Y-m-d" }}</span>
+                </p>
+                {% if event.is_released %}
+                <p class="text-xs text-gray-500">
+                    예상: {{ event.forecast_value|floatformat:2 }} / 
+                    실제: {{ event.actual_value|floatformat:2 }}
+                </p>
+                {% else %}
+                <p class="text-xs text-gray-500">예상: {{ event.forecast_value|floatformat:2 }}</p>
+                {% endif %}
+            </div>
+            {% empty %}
+            <p class="text-gray-500">예정된 일정이 없습니다.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- News Headlines -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold mb-4">최신 뉴스</h2>
+        <div class="space-y-2">
+            {% for headline in news %}
+            <div class="border-b pb-2">
+                <a href="{{ headline.url }}" target="_blank" class="hover:text-green-500">
+                    <p class="text-sm">{{ headline.title }}</p>
+                    <p class="text-xs text-gray-500">{{ headline.source }} - {{ headline.timestamp|timesince }} ago</p>
+                </a>
+            </div>
+            {% empty %}
+            <p class="text-gray-500">뉴스를 불러오는 중...</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// 차트 초기화 및 데이터 업데이트 함수
+function initCharts() {
+    // 지수 차트
+    const indicesCtx = document.getElementById('indicesChart').getContext('2d');
+    const indicesChart = new Chart(indicesCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: 'S&P 500',
+                    data: [],
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1
+                },
+                {
+                    label: 'NASDAQ',
+                    data: [],
+                    borderColor: 'rgb(153, 102, 255)',
+                    tension: 0.1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: false
+                }
+            }
+        }
+    });
+
+    // 채권 차트
+    const bondCtx = document.getElementById('bondChart').getContext('2d');
+    const bondChart = new Chart(bondCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: 'US 10Y',
+                    data: [],
+                    borderColor: 'rgb(255, 99, 132)',
+                    tension: 0.1
+                },
+                {
+                    label: 'US 2Y',
+                    data: [],
+                    borderColor: 'rgb(54, 162, 235)',
+                    tension: 0.1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: false
+                }
+            }
+        }
+    });
+
+    return { indicesChart, bondChart };
+}
+
+// 데이터 실시간 업데이트
+function updateData() {
+    $.get("{% url 'markets:api-latest' %}", function(response) {
+        if (response.data) {
+            // 데이터 업데이트 로직
+            $('#last-update').text(new Date(response.data.timestamp).toLocaleString());
+            // 차트 업데이트
+            updateCharts();
+        }
+    });
+}
+
+// 페이지 로드 시 차트 초기화 및 주기적 업데이트 설정
+$(document).ready(function() {
+    const charts = initCharts();
+    updateData();
+    // 5분마다 데이터 업데이트
+    setInterval(updateData, 300000);
+});
+</script>
+{% endblock %}
