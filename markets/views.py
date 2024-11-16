@@ -1,8 +1,10 @@
-# markets/views.py
 from django.views.generic import TemplateView, ListView, DetailView
 from django.utils import timezone
 from django.db.models import F
-from datetime import timedelta
+from django.http import JsonResponse
+from django.core.cache import cache  # 추가
+from datetime import timedelta, datetime
+from .tasks import collect_historical_data  # tasks.py의 함수도 import
 from .models import (
     MarketIndex,
     BondYield,
@@ -11,6 +13,9 @@ from .models import (
     EconomicCalendar,
     NewsHeadline,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class DashboardView(TemplateView):
@@ -164,17 +169,69 @@ def get_latest_data(request):
 def get_chart_data(request, chart_type):
     """차트 데이터 JSON 응답"""
     try:
+        # 캐시 키 설정
+        cache_key = f"chart_data_{chart_type}"
+        cached_data = cache.get(cache_key)
+
+        if cached_data:
+            return JsonResponse({"data": cached_data})
+
+        # 최근 30일 데이터 조회
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=30)
+
         if chart_type == "indices":
-            data = MarketIndex.objects.values(
-                "timestamp", "sp500", "nasdaq", "kospi", "kosdaq"
-            ).order_by("-timestamp")[:30]
+            from .models import MarketIndex
+
+            queryset = (
+                MarketIndex.objects.filter(timestamp__range=[start_date, end_date])
+                .values("timestamp", "sp500", "nasdaq", "kospi", "kosdaq")
+                .order_by("timestamp")
+            )
+
         elif chart_type == "bonds":
-            data = BondYield.objects.values(
-                "timestamp", "us_10y", "us_2y", "us_spread"
-            ).order_by("-timestamp")[:30]
+            from .models import BondYield
+
+            queryset = (
+                BondYield.objects.filter(timestamp__range=[start_date, end_date])
+                .values("timestamp", "us_10y", "us_2y", "us_spread")
+                .order_by("timestamp")
+            )
+
         else:
             return JsonResponse({"error": "Invalid chart type"}, status=400)
 
-        return JsonResponse({"data": list(data)})
+        # 데이터 포맷팅
+        formatted_data = []
+        for item in queryset:
+            data_point = {"timestamp": item["timestamp"].isoformat()}
+
+            # 각 필드에 대해 None 체크 및 float 변환
+            for key, value in item.items():
+                if key != "timestamp":
+                    data_point[key] = float(value) if value is not None else None
+
+            formatted_data.append(data_point)
+
+        # 데이터가 비어있는 경우 히스토리컬 데이터 수집 시도
+        if not formatted_data:
+            try:
+                collect_historical_data.delay()
+                return JsonResponse(
+                    {"error": "Data is being collected. Please try again later."},
+                    status=202,
+                )
+            except Exception as e:
+                logger.error(f"Failed to trigger historical data collection: {e}")
+                return JsonResponse({"error": "Failed to collect data"}, status=500)
+
+        # 캐시에 데이터 저장 (1시간)
+        cache.set(cache_key, formatted_data, 3600)
+
+        return JsonResponse({"data": formatted_data})
+
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+        import traceback
+
+        logger.error(f"Error in get_chart_data: {str(e)}\n{traceback.format_exc()}")
+        return JsonResponse({"error": f"Internal server error: {str(e)}"}, status=500)

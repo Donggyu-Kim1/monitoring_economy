@@ -1,5 +1,6 @@
 from celery import shared_task
 from django.conf import settings
+from django.core.cache import cache
 from datetime import datetime, timedelta
 import yfinance as yf
 import requests
@@ -129,6 +130,90 @@ def collect_commodities():
 
 
 @shared_task
+def collect_historical_data(period="1y"):
+    """1년치 과거 데이터 수집"""
+    try:
+        # 티커 심볼 매핑
+        indices = {
+            "sp500": "^GSPC",
+            "nasdaq": "^IXIC",
+            "kospi": "^KS11",
+            "kosdaq": "^KQ11",
+            "vix": "^VIX",
+            "dxy": "DX-Y.NYB",
+        }
+        bonds = {"us_10y": "^TNX", "us_2y": "^TWO"}
+        exchange_rates = {
+            "usd_krw": "KRW=X",
+            "eur_usd": "EURUSD=X",
+            "jpy_krw": "JPYKRW=X",
+        }
+        commodities = {"gold": "GC=F", "wti": "CL=F", "bitcoin": "BTC-USD"}
+
+        historical_data = {}
+
+        # 지수 데이터 수집
+        for name, ticker in indices.items():
+            try:
+                stock = yf.Ticker(ticker)
+                hist = stock.history(period=period)
+                if not hist.empty:
+                    historical_data[name] = hist["Close"].to_dict()
+            except Exception as e:
+                logger.error(f"Error fetching historical data for {name}: {e}")
+
+        # 채권 데이터 수집
+        for name, ticker in bonds.items():
+            try:
+                bond = yf.Ticker(ticker)
+                hist = bond.history(period=period)
+                if not hist.empty:
+                    historical_data[name] = hist["Close"].to_dict()
+            except Exception as e:
+                logger.error(f"Error fetching historical data for {name}: {e}")
+
+        # 스프레드 계산
+        if "us_10y" in historical_data and "us_2y" in historical_data:
+            historical_data["us_spread"] = {}
+            for date in historical_data["us_10y"].keys():
+                if date in historical_data["us_2y"]:
+                    historical_data["us_spread"][date] = (
+                        historical_data["us_10y"][date] - historical_data["us_2y"][date]
+                    )
+
+        # 환율 데이터 수집
+        for name, ticker in exchange_rates.items():
+            try:
+                forex = yf.Ticker(ticker)
+                hist = forex.history(period=period)
+                if not hist.empty:
+                    historical_data[name] = hist["Close"].to_dict()
+            except Exception as e:
+                logger.error(f"Error fetching historical data for {name}: {e}")
+
+        # 원자재 데이터 수집
+        for name, ticker in commodities.items():
+            try:
+                commodity = yf.Ticker(ticker)
+                hist = commodity.history(period=period)
+                if not hist.empty:
+                    historical_data[name] = hist["Close"].to_dict()
+            except Exception as e:
+                logger.error(f"Error fetching historical data for {name}: {e}")
+
+        # Redis에 데이터 캐싱
+        cache_key = f"market_historical_data_{period}"
+        cache.set(cache_key, historical_data, timeout=3600)  # 1시간 캐시
+
+        logger.info(f"Historical data collected successfully for period: {period}")
+        return historical_data
+
+    except Exception as e:
+        logger.error(f"Failed to collect historical data: {e}")
+        raise
+
+
+@shared_task
 def collect_news():
     """뉴스 헤드라인 수집"""
     try:
@@ -212,6 +297,7 @@ def collect_all_market_data():
         collect_commodities.delay()
         collect_news.delay()
         update_economic_calendar.delay()
+        collect_historical_data.delay()
 
         logger.info("All market data collection tasks initiated")
         return "All collection tasks started"

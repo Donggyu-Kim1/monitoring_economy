@@ -170,91 +170,260 @@
 
 {% block extra_scripts %}
 <script>
-// 차트 초기화 및 데이터 업데이트 함수
-function initCharts() {
-    // 지수 차트
-    const indicesCtx = document.getElementById('indicesChart').getContext('2d');
-    const indicesChart = new Chart(indicesCtx, {
-        type: 'line',
-        data: {
-            labels: [],
-            datasets: [
-                {
-                    label: 'S&P 500',
-                    data: [],
-                    borderColor: 'rgb(75, 192, 192)',
-                    tension: 0.1
+    let charts = {
+        indices: null,
+        bonds: null
+    };
+
+    function initializeCharts() {
+        // 지수 차트 초기화
+        const indicesCtx = document.getElementById('indicesChart').getContext('2d');
+        charts.indices = new Chart(indicesCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'S&P 500',
+                        data: [],
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1,
+                        pointRadius: 1  // 데이터 포인트 크기 축소
+                    },
+                    {
+                        label: 'NASDAQ',
+                        data: [],
+                        borderColor: 'rgb(255, 99, 132)',
+                        tension: 0.1,
+                        pointRadius: 1
+                    },
+                    {
+                        label: 'KOSPI',
+                        data: [],
+                        borderColor: 'rgb(54, 162, 235)',
+                        tension: 0.1,
+                        pointRadius: 1
+                    },
+                    {
+                        label: 'KOSDAQ',
+                        data: [],
+                        borderColor: 'rgb(153, 102, 255)',
+                        tension: 0.1,
+                        pointRadius: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                label += parseFloat(context.raw).toLocaleString('ko-KR', {
+                                    maximumFractionDigits: 2
+                                });
+                                return label;
+                            }
+                        }
+                    }
                 },
-                {
-                    label: 'NASDAQ',
-                    data: [],
-                    borderColor: 'rgb(153, 102, 255)',
-                    tension: 0.1
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                y: {
-                    beginAtZero: false
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'month',
+                            displayFormats: {
+                                month: 'yyyy-MM'
+                            }
+                        },
+                        ticks: {
+                            maxRotation: 45
+                        }
+                    },
+                    y: {
+                        beginAtZero: false,
+                        ticks: {
+                            callback: function(value) {
+                                return value.toLocaleString('ko-KR');
+                            }
+                        }
+                    }
+                },
+                interaction: {
+                    mode: 'index',
+                    intersect: false
                 }
             }
-        }
-    });
+        });
 
-    // 채권 차트
-    const bondCtx = document.getElementById('bondChart').getContext('2d');
-    const bondChart = new Chart(bondCtx, {
-        type: 'line',
-        data: {
-            labels: [],
-            datasets: [
-                {
-                    label: 'US 10Y',
-                    data: [],
-                    borderColor: 'rgb(255, 99, 132)',
-                    tension: 0.1
+        // 채권 차트 초기화
+        const bondCtx = document.getElementById('bondChart').getContext('2d');
+        charts.bonds = new Chart(bondCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'US 10Y (%)',
+                        data: [],
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1,
+                        pointRadius: 1
+                    },
+                    {
+                        label: 'US 2Y (%)',
+                        data: [],
+                        borderColor: 'rgb(255, 99, 132)',
+                        tension: 0.1,
+                        pointRadius: 1
+                    },
+                    {
+                        label: 'Spread (bp)',
+                        data: [],
+                        borderColor: 'rgb(54, 162, 235)',
+                        tension: 0.1,
+                        pointRadius: 1,
+                        yAxisID: 'spread'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
                 },
-                {
-                    label: 'US 2Y',
-                    data: [],
-                    borderColor: 'rgb(54, 162, 235)',
-                    tension: 0.1
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                y: {
-                    beginAtZero: false
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'month',
+                            displayFormats: {
+                                month: 'yyyy-MM'
+                            }
+                        },
+                        ticks: {
+                            maxRotation: 45
+                        }
+                    },
+                    y: {
+                        beginAtZero: false,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: '수익률 (%)'
+                        }
+                    },
+                    spread: {
+                        position: 'right',
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: '스프레드 (bp)'
+                        },
+                        grid: {
+                            drawOnChartArea: false
+                        }
+                    }
+                },
+                interaction: {
+                    mode: 'index',
+                    intersect: false
                 }
             }
+        });
+    }
+
+    function updateCharts(chartType, newData) {
+        if (!newData || newData.length === 0) {
+            console.warn(`No data received for ${chartType}`);
+            return;
         }
-    });
-
-    return { indicesChart, bondChart };
-}
-
-// 데이터 실시간 업데이트
-function updateData() {
-    $.get("{% url 'markets:api-latest' %}", function(response) {
-        if (response.data) {
-            // 데이터 업데이트 로직
-            $('#last-update').text(new Date(response.data.timestamp).toLocaleString());
-            // 차트 업데이트
-            updateCharts();
+    
+        try {
+            switch(chartType) {
+                case 'indices':
+                    charts.indices.data.datasets[0].data = newData.map(item => ({
+                        x: new Date(item.timestamp),
+                        y: item.sp500
+                    })).filter(item => item.y != null);
+                    
+                    charts.indices.data.datasets[1].data = newData.map(item => ({
+                        x: new Date(item.timestamp),
+                        y: item.nasdaq
+                    })).filter(item => item.y != null);
+                    
+                    charts.indices.data.datasets[2].data = newData.map(item => ({
+                        x: new Date(item.timestamp),
+                        y: item.kospi
+                    })).filter(item => item.y != null);
+                    
+                    charts.indices.data.datasets[3].data = newData.map(item => ({
+                        x: new Date(item.timestamp),
+                        y: item.kosdaq
+                    })).filter(item => item.y != null);
+                    
+                    charts.indices.update();
+                    break;
+    
+                case 'bonds':
+                    charts.bonds.data.datasets[0].data = newData.map(item => ({
+                        x: new Date(item.timestamp),
+                        y: item.us_10y
+                    })).filter(item => item.y != null);
+                    
+                    charts.bonds.data.datasets[1].data = newData.map(item => ({
+                        x: new Date(item.timestamp),
+                        y: item.us_2y
+                    })).filter(item => item.y != null);
+                    
+                    charts.bonds.data.datasets[2].data = newData.map(item => ({
+                        x: new Date(item.timestamp),
+                        y: item.us_spread ? item.us_spread * 100 : null
+                    })).filter(item => item.y != null);
+                    
+                    charts.bonds.update();
+                    break;
+            }
+        } catch (error) {
+            console.error(`Error updating ${chartType} chart:`, error);
         }
-    });
-}
+    }
 
-// 페이지 로드 시 차트 초기화 및 주기적 업데이트 설정
-$(document).ready(function() {
-    const charts = initCharts();
-    updateData();
-    // 5분마다 데이터 업데이트
-    setInterval(updateData, 300000);
-});
+    $(document).ready(function() {
+        initializeCharts();
+
+        // 차트 데이터 초기 로드
+        ['indices', 'bonds'].forEach(type => {
+            $.ajax({
+                url: `/api/chart/${type}/`,
+                method: 'GET',
+                success: function(response) {
+                    if (response.data) {
+                        updateCharts(type, response.data);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error(`Error loading ${type} data:`, error);
+                }
+            });
+        });
+    });
 </script>
 {% endblock %}
