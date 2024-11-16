@@ -54,7 +54,7 @@ def collect_market_indices():
 def collect_bond_yields():
     """채권 수익률 데이터 수집"""
     try:
-        bonds = {"us_10y": "^TNX", "us_2y": "^TWO"}
+        bonds = {"us_10y": "^TNX", "us_3m": "^IRX", "us_30y": "^TYX"}
 
         data = {}
         for name, ticker in bonds.items():
@@ -68,8 +68,8 @@ def collect_bond_yields():
                 data[name] = None
 
         # Calculate spread
-        if data.get("us_10y") and data.get("us_2y"):
-            data["us_spread"] = data["us_10y"] - data["us_2y"]
+        if data.get("us_30y") and data.get("us_3m"):
+            data["us_spread"] = data["us_30y"] - data["us_3m"]
 
         BondYield.objects.create(**data)
         logger.info("Bond yields collected successfully")
@@ -142,7 +142,7 @@ def collect_historical_data(period="1y"):
             "vix": "^VIX",
             "dxy": "DX-Y.NYB",
         }
-        bonds = {"us_10y": "^TNX", "us_2y": "^TWO"}
+        bonds = {"us_10y": "^TNX", "us_3m": "^IRX", "us_30y": "^TYX"}
         exchange_rates = {
             "usd_krw": "KRW=X",
             "eur_usd": "EURUSD=X",
@@ -173,12 +173,12 @@ def collect_historical_data(period="1y"):
                 logger.error(f"Error fetching historical data for {name}: {e}")
 
         # 스프레드 계산
-        if "us_10y" in historical_data and "us_2y" in historical_data:
+        if "us_30y" in historical_data and "us_3m" in historical_data:
             historical_data["us_spread"] = {}
-            for date in historical_data["us_10y"].keys():
-                if date in historical_data["us_2y"]:
+            for date in historical_data["us_30y"].keys():
+                if date in historical_data["us_3m"]:
                     historical_data["us_spread"][date] = (
-                        historical_data["us_10y"][date] - historical_data["us_2y"][date]
+                        historical_data["us_30y"][date] - historical_data["us_3m"][date]
                     )
 
         # 환율 데이터 수집

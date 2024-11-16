@@ -14,6 +14,10 @@ from .models import (
     NewsHeadline,
 )
 import logging
+import yfinance as yf
+
+# API Views for AJAX requests
+from django.http import JsonResponse
 
 logger = logging.getLogger(__name__)
 
@@ -147,10 +151,6 @@ def calculate_change(current, previous):
         return None
 
 
-# API Views for AJAX requests
-from django.http import JsonResponse
-
-
 def get_latest_data(request):
     """최신 데이터 JSON 응답"""
     try:
@@ -169,64 +169,76 @@ def get_latest_data(request):
 def get_chart_data(request, chart_type):
     """차트 데이터 JSON 응답"""
     try:
-        # 캐시 키 설정
-        cache_key = f"chart_data_{chart_type}"
-        cached_data = cache.get(cache_key)
+        cache_key = f"market_historical_data_1y"
+        historical_data = cache.get(cache_key)
 
-        if cached_data:
-            return JsonResponse({"data": cached_data})
+        if not historical_data:
+            try:
+                # 동기적으로 실행
+                historical_data = collect_historical_data("1y")
+            except Exception as e:
+                logger.error(f"Failed to collect historical data: {e}")
+                return JsonResponse(
+                    {"error": "Failed to fetch historical data"}, status=500
+                )
 
-        # 최근 30일 데이터 조회
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=30)
+        formatted_data = []
 
         if chart_type == "indices":
-            from .models import MarketIndex
-
-            queryset = (
-                MarketIndex.objects.filter(timestamp__range=[start_date, end_date])
-                .values("timestamp", "sp500", "nasdaq", "kospi", "kosdaq")
-                .order_by("timestamp")
+            # 모든 날짜를 하나로 통합
+            all_dates = sorted(
+                set().union(
+                    *[
+                        historical_data[key].keys()
+                        for key in ["sp500", "nasdaq", "kospi", "kosdaq"]
+                        if key in historical_data
+                    ]
+                )
             )
+
+            # 데이터 포맷팅
+            for date in all_dates:
+                data_point = {
+                    "timestamp": date.isoformat(),
+                    "sp500": historical_data["sp500"].get(date),
+                    "nasdaq": historical_data["nasdaq"].get(date),
+                    "kospi": historical_data["kospi"].get(date),
+                    "kosdaq": historical_data["kosdaq"].get(date),
+                }
+                formatted_data.append(data_point)
 
         elif chart_type == "bonds":
-            from .models import BondYield
-
-            queryset = (
-                BondYield.objects.filter(timestamp__range=[start_date, end_date])
-                .values("timestamp", "us_10y", "us_2y", "us_spread")
-                .order_by("timestamp")
+            # 모든 날짜를 하나로 통합
+            all_dates = sorted(
+                set().union(
+                    *[
+                        historical_data[key].keys()
+                        for key in ["us_10y", "us_3m", "us_30y", "us_spread"]
+                        if key in historical_data
+                    ]
+                )
             )
+
+            # 데이터 포맷팅
+            for date in all_dates:
+                data_point = {
+                    "timestamp": date.isoformat(),
+                    "us_10y": historical_data["us_10y"].get(date),
+                    "us_3m": historical_data["us_3m"].get(date),
+                    "us_30y": historical_data["us_30y"].get(date),
+                    "us_spread": historical_data["us_spread"].get(date),
+                }
+                formatted_data.append(data_point)
 
         else:
             return JsonResponse({"error": "Invalid chart type"}, status=400)
 
-        # 데이터 포맷팅
-        formatted_data = []
-        for item in queryset:
-            data_point = {"timestamp": item["timestamp"].isoformat()}
-
-            # 각 필드에 대해 None 체크 및 float 변환
-            for key, value in item.items():
-                if key != "timestamp":
-                    data_point[key] = float(value) if value is not None else None
-
-            formatted_data.append(data_point)
-
-        # 데이터가 비어있는 경우 히스토리컬 데이터 수집 시도
         if not formatted_data:
-            try:
-                collect_historical_data.delay()
-                return JsonResponse(
-                    {"error": "Data is being collected. Please try again later."},
-                    status=202,
-                )
-            except Exception as e:
-                logger.error(f"Failed to trigger historical data collection: {e}")
-                return JsonResponse({"error": "Failed to collect data"}, status=500)
+            return JsonResponse({"error": "No data available"}, status=404)
 
-        # 캐시에 데이터 저장 (1시간)
-        cache.set(cache_key, formatted_data, 3600)
+        # 차트 데이터 캐시
+        chart_cache_key = f"chart_data_{chart_type}"
+        cache.set(chart_cache_key, formatted_data, 3600)
 
         return JsonResponse({"data": formatted_data})
 

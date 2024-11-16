@@ -55,11 +55,15 @@
                     <p class="text-lg font-semibold">{{ bond_data.us_10y|floatformat:2 }}%</p>
                 </div>
                 <div>
-                    <p class="text-sm text-gray-500">US 2Y</p>
-                    <p class="text-lg font-semibold">{{ bond_data.us_2y|floatformat:2 }}%</p>
+                    <p class="text-sm text-gray-500">US 3M</p>
+                    <p class="text-lg font-semibold">{{ bond_data.us_3m|floatformat:2 }}%</p>
                 </div>
                 <div>
-                    <p class="text-sm text-gray-500">2s10s Spread</p>
+                    <p class="text-sm text-gray-500">US 30y</p>
+                    <p class="text-lg font-semibold">{{ bond_data.us_30y|floatformat:2 }}%</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">3m30y Spread</p>
                     <p class="text-lg font-semibold {% if bond_data.us_spread < 0 %}text-red-500{% endif %}">
                         {{ bond_data.us_spread|floatformat:2 }}
                     </p>
@@ -281,9 +285,16 @@
                         pointRadius: 1
                     },
                     {
-                        label: 'US 2Y (%)',
+                        label: 'US 3M (%)',
                         data: [],
                         borderColor: 'rgb(255, 99, 132)',
+                        tension: 0.1,
+                        pointRadius: 1
+                    },
+                    {
+                        label: 'US 30Y (%)',
+                        data: [],
+                        borderColor: 'rgb(153, 102, 255)',
                         tension: 0.1,
                         pointRadius: 1
                     },
@@ -390,10 +401,15 @@
                     
                     charts.bonds.data.datasets[1].data = newData.map(item => ({
                         x: new Date(item.timestamp),
-                        y: item.us_2y
+                        y: item.us_3m
                     })).filter(item => item.y != null);
                     
                     charts.bonds.data.datasets[2].data = newData.map(item => ({
+                        x: new Date(item.timestamp),
+                        y: item.us_30y
+                    })).filter(item => item.y != null);
+                    
+                    charts.bonds.data.datasets[3].data = newData.map(item => ({
                         x: new Date(item.timestamp),
                         y: item.us_spread ? item.us_spread * 100 : null
                     })).filter(item => item.y != null);
