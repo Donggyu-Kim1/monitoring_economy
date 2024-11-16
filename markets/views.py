@@ -2,9 +2,9 @@ from django.views.generic import TemplateView, ListView, DetailView
 from django.utils import timezone
 from django.db.models import F
 from django.http import JsonResponse
-from django.core.cache import cache  # 추가
+from django.core.cache import cache
 from datetime import timedelta, datetime
-from .tasks import collect_historical_data  # tasks.py의 함수도 import
+from .tasks import collect_historical_data
 from .models import (
     MarketIndex,
     BondYield,
@@ -208,33 +208,51 @@ def get_chart_data(request, chart_type):
                 formatted_data.append(data_point)
 
         elif chart_type == "bonds":
-            # 모든 날짜를 하나로 통합
+            # 데이터 존재 여부 로깅
+            logger.info(f"Available keys in historical_data: {historical_data.keys()}")
+
+            # 필요한 키가 모두 있는지 확인
+            required_keys = ["us_10y", "us_3m", "us_30y", "us_spread"]
+            missing_keys = [key for key in required_keys if key not in historical_data]
+
+            if missing_keys:
+                logger.error(f"Missing keys in historical_data: {missing_keys}")
+                return JsonResponse(
+                    {"error": f"Missing data for {', '.join(missing_keys)}"}, status=404
+                )
+
+            # 데이터가 비어있지 않은지 확인
+            empty_keys = [key for key in required_keys if not historical_data.get(key)]
+            if empty_keys:
+                logger.warning(f"Empty data for keys: {empty_keys}")
+
+            # 안전한 데이터 포맷팅
+            formatted_data = []
             all_dates = sorted(
                 set().union(
                     *[
                         historical_data[key].keys()
-                        for key in ["us_10y", "us_3m", "us_30y", "us_spread"]
-                        if key in historical_data
+                        for key in required_keys
+                        if key in historical_data and historical_data[key]
                     ]
                 )
             )
 
-            # 데이터 포맷팅
             for date in all_dates:
                 data_point = {
                     "timestamp": date.isoformat(),
-                    "us_10y": historical_data["us_10y"].get(date),
-                    "us_3m": historical_data["us_3m"].get(date),
-                    "us_30y": historical_data["us_30y"].get(date),
-                    "us_spread": historical_data["us_spread"].get(date),
+                    "us_10y": historical_data.get("us_10y", {}).get(date),
+                    "us_3m": historical_data.get("us_3m", {}).get(date),
+                    "us_30y": historical_data.get("us_30y", {}).get(date),
+                    "us_spread": historical_data.get("us_spread", {}).get(date),
                 }
                 formatted_data.append(data_point)
 
-        else:
-            return JsonResponse({"error": "Invalid chart type"}, status=400)
+            if not formatted_data:
+                logger.error("No data points created after formatting")
+                return JsonResponse({"error": "No data available"}, status=404)
 
-        if not formatted_data:
-            return JsonResponse({"error": "No data available"}, status=404)
+            logger.info(f"Successfully formatted {len(formatted_data)} data points")
 
         # 차트 데이터 캐시
         chart_cache_key = f"chart_data_{chart_type}"

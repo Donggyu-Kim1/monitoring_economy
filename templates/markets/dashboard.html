@@ -63,7 +63,7 @@
                     <p class="text-lg font-semibold">{{ bond_data.us_30y|floatformat:2 }}%</p>
                 </div>
                 <div>
-                    <p class="text-sm text-gray-500">3m30y Spread</p>
+                    <p class="text-sm text-gray-500">3m-30y Spread</p>
                     <p class="text-lg font-semibold {% if bond_data.us_spread < 0 %}text-red-500{% endif %}">
                         {{ bond_data.us_spread|floatformat:2 }}
                     </p>
@@ -398,17 +398,17 @@
                         x: new Date(item.timestamp),
                         y: item.us_10y
                     })).filter(item => item.y != null);
-                    
+
                     charts.bonds.data.datasets[1].data = newData.map(item => ({
                         x: new Date(item.timestamp),
                         y: item.us_3m
                     })).filter(item => item.y != null);
-                    
+
                     charts.bonds.data.datasets[2].data = newData.map(item => ({
                         x: new Date(item.timestamp),
                         y: item.us_30y
                     })).filter(item => item.y != null);
-                    
+
                     charts.bonds.data.datasets[3].data = newData.map(item => ({
                         x: new Date(item.timestamp),
                         y: item.us_spread ? item.us_spread * 100 : null
